@@ -49,8 +49,8 @@ podTemplate(
                 }
             }
 
-            stage('Docker build and push (admin)') {
-                dir("${env.WORKSPACE}/adapter/application-admin") {
+            stage('Docker build and push (user)') {
+                dir("${env.WORKSPACE}/adapter/application-user") {
                     container('docker') {
                         docker.withRegistry("https://${ECR_REPO_USER}", "ecr:${AWS_REGION}:${JENKINS_ECR_CREDENTIAL_ID}") {
                             image = docker.build("${ECR_REPO_USER}:latest")
@@ -67,8 +67,8 @@ podTemplate(
                 }
             }
 
-            stage('Docker build and push (user)') {
-                dir("${env.WORKSPACE}/adapter/application-user") {
+            stage('Docker build and push (consumer)') {
+                dir("${env.WORKSPACE}/adapter/application-consumer") {
                     container('docker') {
                         docker.withRegistry("https://${ECR_REPO_CONSUMER}", "ecr:${AWS_REGION}:${JENKINS_ECR_CREDENTIAL_ID}") {
                             image = docker.build("${ECR_REPO_CONSUMER}:latest")
