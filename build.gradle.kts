@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val coroutineVersion = "1.6.3"
-val mockkVersion = "1.10.3"
-val kotestVersion = "5.3.2"
+val mockkVersion = "1.12.0"
+val kotestVersion = "5.5.5"
 val springCloudVersion = "2021.0.2"
 
 plugins {
@@ -10,14 +10,17 @@ plugins {
     id("io.spring.dependency-management")
     id("org.jetbrains.kotlin.plugin.allopen")
     id("org.jetbrains.kotlin.plugin.noarg")
+
     kotlin("jvm")
     kotlin("plugin.spring")
+
+    kotlin("kapt")
 
     id("com.google.protobuf")
 }
 
 allprojects {
-    group = "team.me.template"
+    group = "com.elicepark"
     version = "1.0.0"
 
     apply(plugin = "kotlin")
@@ -30,6 +33,10 @@ allprojects {
     repositories {
         mavenCentral()
     }
+
+    tasks.withType<Jar> {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
 }
 
 // 공통 Dependency 적용을 제외할 모듈 리스트
@@ -41,6 +48,8 @@ configure(subprojects.filter { it.name !in nonDependencyProjects }) {
 
     apply(plugin = "kotlin")
     apply(plugin = "kotlin-spring")
+
+    apply(plugin = "kotlin-kapt")
 
     apply(plugin = "org.jetbrains.kotlin.plugin.allopen")
     apply(plugin = "org.jetbrains.kotlin.plugin.noarg")
@@ -60,8 +69,8 @@ configure(subprojects.filter { it.name !in nonDependencyProjects }) {
         implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:$coroutineVersion")
 
-        // Spring Cloud
-        implementation("org.springframework.cloud:spring-cloud-starter-config")
+        // Spring Data MongoDB
+        implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
 
         // Test Implementation
         testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -73,13 +82,7 @@ configure(subprojects.filter { it.name !in nonDependencyProjects }) {
         testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutineVersion")
 
         // Annotation Processing Tool
-        annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
-    }
-
-    dependencyManagement {
-        imports {
-            mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
-        }
+        kapt("org.springframework.boot:spring-boot-configuration-processor")
     }
 
     tasks.withType<KotlinCompile> {
@@ -91,6 +94,15 @@ configure(subprojects.filter { it.name !in nonDependencyProjects }) {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+    }
+
+    // commons:common 모듈과 domain 모듈은 테스트에서 제외
+    afterEvaluate {
+        if(name.matches(":domain$|:commons-common$".toRegex())) {
+            tasks.named<Test>("test") {
+                exclude("**/*Test.kt")
+            }
+        }
     }
 }
 
