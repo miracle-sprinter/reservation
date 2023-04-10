@@ -1,0 +1,98 @@
+def AWS_REGION = "ap-northeast-2"
+def AWS_ACCOUNT_ID = "014276069644"
+
+def S3_CREDENTIAL_ID = "miracle_s3_user"
+def JENKINS_ECR_CREDENTIAL_ID = "jenkins_ecr_user"
+
+def APP_NAME = "game-publisher"
+def ECR_REPO_CONSUMER = "014276069644.dkr.ecr.ap-northeast-2.amazonaws.com/reservation-consumer"
+def ECR_REPO_USER = "014276069644.dkr.ecr.ap-northeast-2.amazonaws.com/reservation-user"
+
+podTemplate(
+    label: 'docker-build',
+    containers: [
+        containerTemplate(
+            name: 'docker',
+            image: 'docker',
+            command: 'cat',
+            ttyEnabled: true
+        ),
+        containerTemplate(
+            name: 'argo',
+            image: 'argoproj/argo-cd-ci-builder:latest',
+            command: 'cat',
+            ttyEnabled: true
+        )
+    ],
+    volumes: [
+         hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock'),
+    ]
+) {
+    node('docker-build') {
+        try {
+            stage('Checkout') {
+                deleteDir()
+                checkout scm
+            }
+
+            stage('Test') {
+                dir("${env.WORKSPACE}") {
+                    sh "chmod 755 ./gradlew"
+                    sh "./gradlew test"
+                }
+            }
+
+            stage('Build the user application') {
+                dir("${env.WORKSPACE}/adapter/application-user") {
+                    sh "chmod 755 ./gradlew"
+                    sh "./gradlew build -x test"
+                }
+            }
+
+            stage('Docker build and push (admin)') {
+                dir("${env.WORKSPACE}/adapter/application-admin") {
+                    container('docker') {
+                        docker.withRegistry("https://${ECR_REPO_USER}", "ecr:${AWS_REGION}:${JENKINS_ECR_CREDENTIAL_ID}") {
+                            image = docker.build("${ECR_REPO_USER}:latest")
+                            image.push()
+                        }
+                    }
+                }
+            }
+
+            stage('Build the consumer application') {
+                dir("${env.WORKSPACE}/adapter/application-consumer") {
+                    sh "chmod 755 ./gradlew"
+                    sh "./gradlew build -x test"
+                }
+            }
+
+            stage('Docker build and push (user)') {
+                dir("${env.WORKSPACE}/adapter/application-user") {
+                    container('docker') {
+                        docker.withRegistry("https://${ECR_REPO_CONSUMER}", "ecr:${AWS_REGION}:${JENKINS_ECR_CREDENTIAL_ID}") {
+                            image = docker.build("${ECR_REPO_CONSUMER}:latest")
+                            image.push()
+                        }
+                    }
+                }
+            }
+
+            slackSend(
+                channel: 'deployment-notification',
+                color: 'good',
+                message: "[Successful] Job:${env.JOB_NAME}, Build num:${env.BUILD_NUMBER} (<${env.RUN_DISPLAY_URL}|open job detail>)"
+            )
+        } catch (Exception e) {
+            echo "${e.message}"
+
+            slackSend(
+                channel: 'deployment-notification',
+                color: 'danger',
+                message: "[Failed] Job:${env.JOB_NAME}, Build num:${env.BUILD_NUMBER} @channel (<${env.RUN_DISPLAY_URL}|open job detail>)"
+            )
+
+            throw e
+        }
+    }
+}
