@@ -39,6 +39,11 @@ allprojects {
     }
 }
 
+// 프로젝트의 실행 환경이 mac인가?
+fun isMacOs(): Boolean {
+    return System.getProperty("os.name").toLowerCase().contains("mac")
+}
+
 // 공통 Dependency 적용을 제외할 모듈 리스트
 val nonDependencyProjects = listOf("commons", "independent", "grpc-interface")
 
@@ -83,6 +88,11 @@ configure(subprojects.filter { it.name !in nonDependencyProjects }) {
 
         // Annotation Processing Tool
         kapt("org.springframework.boot:spring-boot-configuration-processor")
+
+        // netty for macOs
+        if(isMacOs()) {
+            implementation("io.netty:netty-resolver-dns-native-macos:4.1.76.Final:osx-aarch_64")
+        }
     }
 
     tasks.withType<KotlinCompile> {

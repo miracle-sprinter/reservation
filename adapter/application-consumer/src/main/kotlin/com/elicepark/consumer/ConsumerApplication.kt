@@ -3,9 +3,9 @@ package com.example.consumer
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
-@SpringBootApplication
-class ApplicationConsumerApplication
+@SpringBootApplication(scanBasePackages = ["com.elicepark"])
+class ConsumerApplication
 
 fun main(args: Array<String>) {
-    runApplication<ApplicationConsumerApplication>(*args)
+    runApplication<ConsumerApplication>(*args)
 }
